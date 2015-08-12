@@ -39,7 +39,7 @@ edyr = 2007
 dates = pd.date_range((str(styr)+'-01-01'), (str(edyr)+'-12-31'), freq='D')
 
 ## convert daily data into single file for detrending
-flag_data = 1
+flag_data = 2
 if flag_data == 1:
 	for var in forcing:
 		data = []
@@ -55,9 +55,35 @@ if flag_data == 1:
 		data = vstack(data)
 		data.dump('%spgf_%s_africa_daily_%s-%s' %(workspace, var, styr, edyr))
 
-# data_detrend = empty(data.shape)
-# data_detrend[lon, lat] = mlab.detrend_linear(data[lon, lat])
-# ts = Series(data_detrend, index=dates)
-# print ts[dt.datetime(1948, 12, 29):dt.datetime(1949, 1, 4)]
-#
-# growing season??
+
+## detrend data time series for each point
+if flag_data == 2:
+	for var in forcing:
+		print var
+		if not os.path.exists('%s%s' % (workspace, var)):
+			os.makedirs('%s%s' % (workspace, var))
+		for lon in xrange(0, glon):
+			for lat in xrange(0, glat):
+				timeseries = []
+				for year in xrange(styr, edyr+1):
+					if calendar.isleap(year):
+						nd = 366
+						print lon, year
+					else:
+						nd = 365
+					stdy = datetime.date(year, 1, 1)
+					for d in xrange(0, nd):
+						curdy = stdy + dt.timedelta(d)
+						timeseries.append(Dataset('%s%s/%s.%4d%02d%02d.nc' % (datadir, year, var, year, curdy.month, curdy.day)).variables[var][:].reshape(glat, glon)[lat, lon])
+
+				# 1st: use detrend in mlab
+				data_detrend = mlab.detrend_linear(timeseries)
+				mean = mean(timeseries)
+				timeseries_update = data_detrend + mean
+				timeseries_update.dump('%s%s/pgf_%s_detrend_%s-%s' %(workspace, var, var, lat, lon))
+				del timeseries_update, timeseries, data_detrend
+	# ts = Series(data_detrend, index=dates)
+	# print ts[dt.datetime(1948, 12, 29):dt.datetime(1949, 1, 4)]
+	#		data = load('%spgf_%s_africa_daily_%s-%s' %(workspace, var, styr, edyr))
+
+	# growing season??
