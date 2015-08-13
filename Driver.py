@@ -76,12 +76,15 @@ if flag_data == 2:
 						curdy = stdy + dt.timedelta(d)
 						timeseries.append(Dataset('%s%s/%s.%4d%02d%02d.nc' % (datadir, year, var, year, curdy.month, curdy.day)).variables[var][:].reshape(glat, glon)[lat, lon])
 
+				timeseries = array(timeseries)
+
 				# 1st: use detrend in mlab
 				data_detrend = mlab.detrend_linear(timeseries)
 				mean = mean(timeseries)
 				timeseries_update = data_detrend + mean
 				timeseries_update.dump('%s%s/pgf_%s_detrend_%s-%s' %(workspace, var, var, lat, lon))
 				del timeseries_update, timeseries, data_detrend
+
 	# ts = Series(data_detrend, index=dates)
 	# print ts[dt.datetime(1948, 12, 29):dt.datetime(1949, 1, 4)]
 	#		data = load('%spgf_%s_africa_daily_%s-%s' %(workspace, var, styr, edyr))
