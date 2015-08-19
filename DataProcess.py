@@ -4,6 +4,7 @@ from netCDF4 import Dataset
 from pylab import *
 import calendar
 import IO
+from scipy import stats
 
 ## start GrADS
 ##------------
@@ -53,6 +54,38 @@ def Extract_Data_Periodd_Average(idate_out, fdate_out, open_type, ctl_in, var, t
 	ga('close 1')
 
 	return data
+
+
+def MannKendall_Trend_Parameter(y):
+
+	""" Use Theil-Sen slope to calculate the median (nonparametric) trend """
+	y = np.asarray(y)
+	if y.ndim > 1:
+		raise ValueError('y cannot have ndim > 1')
+	if not y.ndim:
+		return np.array(0., dtype=y.dtype)
+	x = np.arange(y.size, dtype=float)
+	b = stats.mstats.theilslopes(y, alpha=0.95)[0]  # Recall that mstats use alpha=0.95 but stats use alpha=0.05
+	# corr, p = stats.mstats.kendalltau(x, y)
+	a = mean(y) - b*mean(x)
+
+	return [a, b]
+
+def Linear_Trend_Parameter(y):
+
+	y = np.asarray(y)
+	if y.ndim > 1:
+		raise ValueError('y cannot have ndim > 1')
+	if not y.ndim:
+		return np.array(0., dtype=y.dtype)
+
+	x = np.arange(y.size, dtype=float)
+
+	C = np.cov(x, y, bias=1)
+	b = C[0, 1]/C[0, 0]
+	a = mean(y) - b*mean(x)
+
+	return [a, b]
 
 
 def Assemble_grid_daily_timeseries(datadir, workspace, forcing, styr, edyr, glat, glon):

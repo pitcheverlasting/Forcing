@@ -12,12 +12,10 @@ __author__ = 'pitch'
 ##---------------
 import sys, os, gc
 # time handling
-import time, calendar
-from pandas.tseries.offsets import Day
-import pandas as pd
-from netCDF4 import Dataset
+import calendar
 from pandas import Series, DataFrame
 # tool
+from netCDF4 import Dataset
 from pylab import *
 import IO, DataProcess
 import matplotlib as mpl
@@ -31,13 +29,14 @@ datadir = '/home/air1/lpeng/Projects/Africa/Data/'
 workspace = '/home/air1/lpeng/Projects/Africa/workspace/'
 forcing = ('Tmax', 'Tmin', 'Rs', 'wnd10m', 'RH', 'prec')
 varname = ('tmax', 'tmin', 'rs', 'wind', 'rh', 'prec')
+units = ('K', 'K', 'W/m2', 'm/s', 'x100%', 'mm/d')
 
 glat = 292
 glon = 296
 styr = 1948
 edyr = 2010
 stdy = datetime.datetime(styr, 1, 1)
-eddy = datetime.datetime((edyr), 12, 31)
+eddy = datetime.datetime(edyr, 12, 31)
 nt = (eddy - stdy).days + 1
 nmon = (edyr - styr + 1) * 12
 
@@ -53,61 +52,109 @@ dims['maxlat'] = dims['minlat'] + dims['res'] * (dims['nlat'] - 1)
 dims['maxlon'] = dims['minlon'] + dims['res'] * (dims['nlon'] - 1)
 dims['undef'] = -9.99e+08
 
-## Aggregate monthly time series to calculate linear trend
-types = ('ave', 'ave', 'ave', 'ave', 'ave', 'pre')
-for i in xrange(0, len(forcing)):
-	ctl_out = '%s/%s_%d-%d.ctl' % (datadir, forcing[i], styr, edyr)
-	# initial month start day
-	monst = stdy
-	data_mon = []
-	for j in xrange(0, nmon):
-		# end day of the month
-		moned = monst + relativedelta(months=1) - relativedelta(days=1)
+# Open mask file
+maskdir = '/home/water5/lpeng/Masks/0.25deg/africa/'
+# mask.mask is the boolean values: True and False
+mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :].mask
 
-		data = DataProcess.Extract_Data_Periodd_Average(monst, moned, 'open', ctl_out, varname[i], types[i])
-		# Convert 2-d arrays to 3-d for stacking
-		data_mon.append(data.reshape(1, glat, glon))
-		del data
+## ========Define inner function =============
+def Get_Area_Trend(type, varname):
 
-		# Update month
-		print monst, moned
-		monst = monst + relativedelta(months=1)
+	"""Inner function for looping Mann-Kendall trend slope"""
 
-	# stacking
-	data_mon = vstack(data_mon)
-	# data_mon = vstack(data_mon)
-	if not os.path.exists('%s%s' % (workspace, var)):
-		os.makedirs('%s%s' % (workspace, var))
-	data_mon.dump('%s%s/%s_monthly_%s-%s' %(workspace, varname[i], varname[i], styr, edyr))
-	del data_mon
+	if type == 'monthly':
+		data = load('%s%s/%s_monthly_%s-%s' %(workspace, varname, varname, styr, edyr))
+	elif type == 'annual':
+		data = load('%s%s/%s_annual_%s-%s' %(workspace, varname, varname, styr, edyr))
+	print "%s loaded" % varname
+	parameters = empty((2, glat, glon))
+	parameters.fill(nan)
+	for lon in xrange(0, glon):
+		for lat in xrange(0, glat):
+			if mask[lat, lon]:
+				continue
+			else:
+				# parameters[:, lat, lon] = DataProcess.Linear_Trend_Parameter(data[:, lat, lon])
+				parameters[:, lat, lon] = DataProcess.MannKendall_Trend_Parameter(data[:, lat, lon])
+	# store the parameters
+	parameters.dump('%s%s/mk_trend_slope_itcpt_%s' % (workspace, varname, type))
+	del data, parameters
+
+	return
+
+## Main function
+##================
+flag = 2
+## Step1: Aggregate monthly time series to calculate linear trend
+if flag == 1:
+	types = ('ave', 'ave', 'ave', 'ave', 'ave', 'pre') # for calculating monthly value
+	for i in xrange(0, len(forcing)):
+		ctl_out = '%s/%s_%d-%d.ctl' % (datadir, forcing[i], styr, edyr)
+		# initial month start day
+		monst = stdy
+		data_mon = []
+		for j in xrange(0, nmon):
+			# end day of the month
+			moned = monst + relativedelta(months=1) - relativedelta(days=1)
+			data = DataProcess.Extract_Data_Periodd_Average(monst, moned, 'open', ctl_out, varname[i], types[i])
+			# Convert 2-d arrays to 3-d for stacking
+			data_mon.append(data.reshape(1, glat, glon))
+			del data
+			# Update month
+			print monst, moned
+			monst = monst + relativedelta(months=1)
+
+		# stacking all the monthly data
+		data_mon = vstack(data_mon)
+		if not os.path.exists('%s%s' % (workspace, varname[i])):
+			os.makedirs('%s%s' % (workspace, varname[i]))
+		data_mon.dump('%s%s/%s_monthly_%s-%s' %(workspace, varname[i], varname[i], styr, edyr))
+		del data_mon
+
+## Step1.5: Aggregate annual time series to calculate linear trend
+if flag == 1.5:
+	types = ('ave', 'ave', 'ave', 'ave', 'ave', 'pre') # for calculating monthly value
+	for i in xrange(0, len(forcing)):
+		ctl_out = '%s/%s_%d-%d.ctl' % (datadir, forcing[i], styr, edyr)
+		# initial month start day
+		data_ann = []
+		for year in xrange(styr, edyr+1):
+			yrst = datetime.datetime(year, 1, 1)
+			yred = datetime.datetime(year, 12, 31)
+			# end day of the month
+			data = DataProcess.Extract_Data_Periodd_Average(yrst, yred, 'open', ctl_out, varname[i], types[i])
+			# Convert 2-d arrays to 3-d for stacking
+			data_ann.append(data.reshape(1, glat, glon))
+			del data
+			# Update month
+			print yrst, yred
+
+		# stacking all the monthly data
+		data_ann = vstack(data_ann)
+		if not os.path.exists('%s%s' % (workspace, varname[i])):
+			os.makedirs('%s%s' % (workspace, varname[i]))
+		data_ann.dump('%s%s/%s_annual_%s-%s' %(workspace, varname[i], varname[i], styr, edyr))
+		del data_ann
+
+
+## Step2: Get parameters from regression based on theil's slope (Mann kendall)
+if flag == 2:
+	for i in xrange(0, len(forcing)):
+		Get_Area_Trend('annual', varname[i])
 
 exit()
-# for i in xrange(0, len(forcing)):
-# 	data = load('%s%s/%s_monthly_%s-%s' %(workspace, varname[i], varname[i], styr, edyr))
-# 	for lon in xrange(0, glon):
-# 		for lat in xrange(0, glat):
-# 			# 1st: use detrend in mlab
-# 			data_detrend = mlab.detrend_linear(timeseries)
-# 			ave = np.mean(timeseries)
-# 			timeseries_update = data_detrend + ave
+
+## Step3: apply the regression parameters on the
+
+# 			data.append(Dataset('%s%s/%s.%4d%02d%02d.nc' % (datadir, year, var, year, curdy.month, curdy.day)).variables[var][:].reshape(1, glat, glon))
+# 	data = vstack(data)
+# 	data.dump('%spgf_%s_africa_daily_%s-%s' %(workspace, var, styr, edyr))
+#
+# y - (slope * x + intercept)
+# 		timeseries_update = data_detrend + ave
 # 			timeseries_update.dump('%s%s/pgf_%s_detrend_%s-%s' %(workspace, var, var, lat, lon))
 # 			del timeseries_update, timeseries, data_detrend
-		# 	    y = np.asarray(y)
-	#
-    # if y.ndim > 1:
-    #     raise ValueError('y cannot have ndim > 1')
-	#
-    # # short-circuit 0-D array.
-    # if not y.ndim:
-    #     return np.array(0., dtype=y.dtype)
-	#
-    # x = np.arange(y.size, dtype=np.float_)
-	#
-    # C = np.cov(x, y, bias=1)
-    # b = C[0, 1]/C[0, 0]
-	#
-    # a = y.mean() - b*x.mean()
-    # return y - (b*x + a)
+
 # curday = stdy
 # while curday <= datetime.date(edyr, 12, 31):
 # 	last_month = 1
