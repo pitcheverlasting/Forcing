@@ -24,37 +24,39 @@ nws_precip_colors = [
 ]
 precip_colormap = matplotlib.colors.ListedColormap(nws_precip_colors)
 
-def Mapshow(dims, data, clevs, cblevs, max, min, tit, unit):
+def Mapshow(dims, data, type, para1, para2, tit, unit):
 
 	# Prepare for drawing
 	lons = np.arange(dims['minlon'], dims['maxlon']+dims['res']/2, dims['res'])
 	lats = np.arange(dims['minlat'], dims['maxlat']+dims['res']/2, dims['res'])
 	x, y = np.meshgrid(lons, lats)
 	# draw Chile Basemap with lambert projection at normal x, y settings
-	m = Basemap(llcrnrlon=dims['minlon'], llcrnrlat=dims['minlat'], urcrnrlon=dims['maxlon'], urcrnrlat=dims['maxlat'], projection='cyl', fix_aspect=False, lat_1=-10, lat_2=10, lon_0=20) # projection='lcc'
+	m = Basemap(llcrnrlon=dims['minlon'], llcrnrlat=dims['minlat'], urcrnrlon=dims['maxlon'], urcrnrlat=dims['maxlat'], projection='cyl', fix_aspect=True, lat_1=-10, lat_2=10, lon_0=20) # projection='lcc'
 	# draw boundaries
 	m.drawcoastlines(); m.drawcountries(linewidth=2); m.drawstates()
 	m.drawparallels(arange(-20, 30, 20), labels=[1, 0, 0, 0])  # only left ytick
 	m.drawmeridians(arange(-10, 60, 20), labels=[0, 0, 0, 1])  # only bottom xtick
 	# for  the classified figure
 	X, Y = m(x, y)
-	if clevs == None:
+	if type == 'imshow':
 		# im = m.contourf(X, Y, data, cmap=plt.cm.bwr, extend='both')
 		plotdata = m.transform_scalar(data, lons, lats, dims['nlon'], dims['nlat'])
-		im = m.imshow(plotdata, vmin=min, vmax=max, cmap=plt.cm.bwr)
-	else:
-		im = m.contourf(X, Y, data, clevs, cmap=plt.cm.bwr, extend='both')
-
-		cb = m.colorbar(im, pad='3%')
-	cb = m.colorbar(im, location='bottom', pad='16%')
-	if cblevs is not None:
-		cb.set_ticks(cblevs)
-		cb.set_ticklabels(cblevs)
+		im = m.imshow(plotdata, vmin=para2, vmax=para1, cmap=plt.cm.bwr)
+	elif type == 'contour':
+		if para1 is not None:
+			im = m.contourf(X, Y, data, para1, cmap=plt.cm.bwr, extend='both')
+		else:
+			im = m.contourf(X, Y, data, cmap=plt.cm.bwr, extend='both')
+		cb = m.colorbar(im, pad='3%', ticks=para2)    # cb = m.colorbar(im, location='bottom', pad='16%')
+		# The following method will return the zero as a small number close to zero
+		# if para2 is not None:
+		# 	cb.set_ticks(para2)
+		# 	cb.set_ticklabels(para2)
 
 	# map data with lon and lat position
 	plt.title(tit, fontsize=20)
-	plt.xlabel(unit, fontsize=16, labelpad=20)
-	plt.show()
+	plt.xlabel(unit, fontsize=18, labelpad=15)
+	# plt.show()
 
 def Mapshow_basin(data, clevs, cblevs, tit, unit):
 

@@ -15,10 +15,14 @@ gradsen()
 ga = GrADS(Bin='/home/latent2/mpan/local/opengrads/Linux/x86_64/grads', Verb=False, Echo=False, Port=False, Window=False, Opts="-c 'q config'")
 
 
-def Extract_Data_Periodd_Average(idate_out, fdate_out, open_type, ctl_in, var, type):
+def Extract_Data_Period_Average(idate_out, fdate_out, lat, lon, open_type, ctl_in, var, type):
 
 	# open access to the control file
 	ga("%s %s" % (open_type, ctl_in))
+	# determine spatial domain
+	if lat is not None and lon is not None:
+		ga('set x %s' % (lon+1))
+		ga('set y %s' % (lat+1))
 	# determine initial and final time step
 	ga('set t 1')
 	idate_all = IO.gradstime2datetime(ga.exp(var).grid.time[0])
@@ -68,8 +72,12 @@ def MannKendall_Trend_Parameter(y):
 	b = stats.mstats.theilslopes(y, alpha=0.95)[0]  # Recall that mstats use alpha=0.95 but stats use alpha=0.05
 	# corr, p = stats.mstats.kendalltau(x, y)
 	a = mean(y) - b*mean(x)
+	# to get the starting point and ending point
+	st = b * x[0] + a
+	ed = b * x[-1] + a
 
-	return [a, b]
+	# In this case, I use annual value to detrend daily values, so annual unit slope is converted into daily unit by deviding 365.25
+	return [b/365.25, st, ed]
 
 def Linear_Trend_Parameter(y):
 
@@ -87,6 +95,9 @@ def Linear_Trend_Parameter(y):
 
 	return [a, b]
 
+
+## The following functions are slow functions
+## ==================Old Zone===========================
 
 def Assemble_grid_daily_timeseries(datadir, workspace, forcing, styr, edyr, glat, glon):
 
