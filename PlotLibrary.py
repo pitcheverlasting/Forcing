@@ -56,7 +56,7 @@ def Mapshow(dims, data, type, para1, para2, tit, unit):
 	# map data with lon and lat position
 	plt.title(tit, fontsize=20)
 	plt.xlabel(unit, fontsize=18, labelpad=15)
-	# plt.show()
+	plt.show()
 
 def Mapshow_basin(data, clevs, cblevs, tit, unit):
 

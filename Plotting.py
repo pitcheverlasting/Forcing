@@ -11,9 +11,10 @@ import pickle
 ##========Path===================================
 datadir = '/home/air1/lpeng/Projects/Africa/Data/'
 workspace = '/home/air1/lpeng/Projects/Africa/workspace/'
-forcing = ('Tmax', 'Tmin', 'Rs', 'wnd10m', 'RH', 'prec')
-varname = ('tmax', 'tmin', 'rs', 'wind', 'rh', 'prec')
-titles = ('Tmax', 'Tmin', 'Rs', 'Wind', 'RH', 'Prec')
+forcing = ('Tmax', 'Tmin', 'Rs', 'wnd10m', 'RH', 'prec', 'ETo')
+varname = ('tmax', 'tmin', 'rs', 'wind', 'rh', 'prec', 'pet')
+titles = ('Tmax', 'Tmin', 'Rs', 'Wind', 'RH', 'Prec', 'PET')
+units = ('K', 'K', 'W/m2', 'm/s', 'x100%', 'mm/d', 'mm/d')
 ##========dimension=========================
 glat = 292
 glon = 296
@@ -93,25 +94,44 @@ def PrecGet(file_in, num_records):
 
 ##==============Main Function===============
 # Open mask file
+
 figdir = '/home/water5/lpeng/Figure/africa/'  # figure dir
 maskdir = '/home/water5/lpeng/Masks/0.25deg/africa/'
-mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :]  # this is for computing
-units = ('[$K$$\cdot$$decade^{-1}$]', '[$K$$\cdot$$decade^{-1}$]', '[$W$$\cdot$$m^{-2}$$\cdot$$decade^{-1}$]', '[$m$$\cdot$$s$$decade^{-1}$]', '[%$\cdot$$decade^{-1}$]', '[$mm$$\cdot$$yr^{-2}$]')
-limits = ([-0.25, 0.25], [-0.25, 0.25], [-2., 2.], [-0.1, 0.1], [-1., 1.], [-5., 5.])
-flag = 'monthly' # 'annual'
-if flag == "annual":  # for annual case
-	factors = [10, 10, 10, 10, 1000, 1.]
-elif flag == "monthly":  # for monthly case
-	factors = [120, 120, 120, 120, 12000, 144.]
+# mask_bl = Dataset('%smzplant_mu.nc' % gsdir).variables['pmu'][::-1].mask
 
-for i in xrange(0, len(forcing)):
-	slope = load('%s%s/mk_trend_slope_itcpt_%s' % (workspace, varname[i], flag))
-	clevs = arange(limits[i][0], limits[i][1]+0.01, (limits[i][1]-limits[i][0])/10)
-	cblevs = arange(limits[i][0], limits[i][1]+0.01, round((limits[i][1]-limits[i][0])/10, 2))
-	title = '%s Trend (%s): %s - %s' % (titles[i], flag, styr, edyr)
-	Mapshow(dims, slope[1, :, :]*mask*factors[i], "contour", clevs, cblevs,  title, units[i])
-	savefig('%s%s_mk_trend_%s.png' % (figdir, varname[i], flag))
-	plt.clf()
+mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :]  # this is for computing
+unit = '[$mm$$\cdot$$yr^{-2}$]'
+limits = ([-0.25, 0.25], [-0.25, 0.25], [-2., 2.], [-0.1, 0.1], [-1., 1.], [-5., 5.], [-0.1, 0.1])
+flag = 'growseason' # 'annual'
+
+i = 6
+slope = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[i], flag))
+clevs = arange(limits[i][0], limits[i][1]+0.01, (limits[i][1]-limits[i][0])/10)
+cblevs = arange(limits[i][0], limits[i][1]+0.01, round((limits[i][1]-limits[i][0])/10, 2))
+title = '%s Trend (%s): %s - %s' % (titles[i], flag, styr, edyr)
+Mapshow(dims, slope[0, :, :]*mask*365.25, "contour", clevs, cblevs,  title, unit)
+# savefig('%s%s_mk_trend_%s.png' % (figdir, varname[i], flag))
+
+
+# figdir = '/home/water5/lpeng/Figure/africa/'  # figure dir
+# maskdir = '/home/water5/lpeng/Masks/0.25deg/africa/'
+# mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :]  # this is for computing
+# units = ('[$K$$\cdot$$decade^{-1}$]', '[$K$$\cdot$$decade^{-1}$]', '[$W$$\cdot$$m^{-2}$$\cdot$$decade^{-1}$]', '[$m$$\cdot$$s$$decade^{-1}$]', '[%$\cdot$$decade^{-1}$]', '[$mm$$\cdot$$yr^{-2}$]')
+# limits = ([-0.25, 0.25], [-0.25, 0.25], [-2., 2.], [-0.1, 0.1], [-1., 1.], [-5., 5.])
+# flag = 'monthly' # 'annual'
+# if flag == "annual":  # for annual case
+# 	factors = [10, 10, 10, 10, 1000, 1.]
+# elif flag == "monthly":  # for monthly case
+# 	factors = [120, 120, 120, 120, 12000, 144.]
+#
+# for i in xrange(0, len(forcing)):
+# 	slope = load('%s%s/mk_trend_slope_itcpt_%s' % (workspace, varname[i], flag))
+# 	clevs = arange(limits[i][0], limits[i][1]+0.01, (limits[i][1]-limits[i][0])/10)
+# 	cblevs = arange(limits[i][0], limits[i][1]+0.01, round((limits[i][1]-limits[i][0])/10, 2))
+# 	title = '%s Trend (%s): %s - %s' % (titles[i], flag, styr, edyr)
+# 	Mapshow(dims, slope[1, :, :]*mask*factors[i], "contour", clevs, cblevs,  title, units[i])
+# 	savefig('%s%s_mk_trend_%s.png' % (figdir, varname[i], flag))
+# 	plt.clf()
 	# Mapshow(dims, slope[1, :, :]*mask*factors[i], 'imshow', limits[i][0], limits[i][1], title, units[i])
 
 
