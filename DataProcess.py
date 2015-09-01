@@ -77,7 +77,7 @@ def MannKendall_Trend_Parameter(y):
 	ed = b * x[-1] + a
 
 	# In this case, I use annual value to detrend daily values, so annual unit slope is converted into daily unit by deviding 365.25
-	return [b/365.25, st, ed]
+	return [b, st, ed]
 
 def Linear_Trend_Parameter(y):
 

@@ -10,22 +10,16 @@ __author__ = 'pitch'
 
 ## import library
 ##---------------
-import sys, os, gc, time
-# time handling
-import calendar
-from pandas import Series, DataFrame
-# tool
 from netCDF4 import Dataset
 from pylab import *
 import IO, DataProcess
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap, maskoceans
+import sys, os, gc, calendar , time
 gc.collect()
 
 ## import data
 ##------------
 datadir = '/home/air1/lpeng/Projects/Africa/Data/'
+yeardir = '%syearly/' % datadir
 workspace = '/home/air1/lpeng/Projects/Africa/workspace/'
 gsdir = '/home/air1/lpeng/Projects/Africa/GrowSeason/'
 forcing = ('Tmax', 'Tmin', 'Rs', 'wnd10m', 'RH', 'prec', 'ETo')
@@ -53,13 +47,8 @@ dims['maxlat'] = dims['minlat'] + dims['res'] * (dims['nlat'] - 1)
 dims['maxlon'] = dims['minlon'] + dims['res'] * (dims['nlon'] - 1)
 dims['undef'] = -9.99e+08
 
-# Open mask file : this mask is different from Lyndon's mask
-# maskdir = '/home/water5/lpeng/Masks/0.25deg/africa/'
-# mask_bl = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :].mask
-# mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :]
-# # mask.mask is the boolean values: True and False
+# Open mask file, mask.mask is the boolean values: True and False
 mask_bl = Dataset('%smzplant_mu.nc' % gsdir).variables['pmu'][::-1].mask
-
 
 ## In this section, duplicate codes are written as inner functions
 ## ========Define inner function =============
@@ -84,7 +73,7 @@ def Get_Growseason_Length(pdate, hdate):
 
 	return length
 
-def Get_Area_Trend(data, type, varname):
+def Get_Area_Trend(data, filename):
 
 	"""Inner function for looping Mann-Kendall trend slope"""
 
@@ -99,13 +88,14 @@ def Get_Area_Trend(data, type, varname):
 				# parameters[:, lat, lon] = DataProcess.Linear_Trend_Parameter(data[:, lat, lon])
 				parameters[:, lat, lon] = DataProcess.MannKendall_Trend_Parameter(data[:, lat, lon])
 	# parameters.dump('%s%s/mk_trend_slope_itcpt_%s' % (workspace, varname, type))
-	parameters.dump('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname, type))
+	parameters.dump(filename)
 	del data, parameters
 
 	return
 
 ## ****************************** Main function ******************************
-i = 6  # ETo
+## settings
+i = 6
 freq = 'growseason'
 step = 3
 
@@ -117,15 +107,15 @@ step = 3
 # (1) merge all the daily data to annual data using CDO
 if step == 2.1:
 	outdir = '%syearly/' % datadir
-	# if not os.path.exists(outdir):
-	# 	os.makedirs(outdir)
-	# if not os.path.exists('%s%s' % (outdir, var)):
-	# 	os.makedirs('%s%s' % (outdir, var))
-	[os.system('cdo mergetime %s%s/%s*.nc %s%s/%s.%s.nc' %(datadir, year, forcing[i], outdir, forcing[i], forcing[i], year)) for year in xrange(styr, edyr+1)]
+	if not os.path.exists(outdir):
+		os.makedirs(outdir)
+	if not os.path.exists('%s%s' % (outdir, forcing[i])):
+		os.makedirs('%s%s' % (outdir, forcing[i]))
+	[os.system('~/anaconda/bin/cdo mergetime %s%s/%s*.nc %s%s/%s.%s.nc' %(datadir, year, forcing[i], outdir, forcing[i], forcing[i], year)) for year in xrange(styr, edyr+1)]
+
 
 # (2) aggregate annual growing season time series
-elif step == 2.2:
-	yeardir = '%syearly/' % datadir
+if step == 2.2:
 	# load growing season calendar data
 	pdate = Dataset('%smzplant_mu.nc' % gsdir).variables['pmu'][::-1]
 	hdate = Dataset('%smzharvest_mu.nc' % gsdir).variables['hmu'][::-1]
@@ -159,47 +149,88 @@ elif step == 2.2:
 		else:
 			GSmask2 = gsmask2[:365, :, :]
 		# data = vstack((Dataset('%s%s/%s.%s.nc' %(yeardir, forcing[i], forcing[i], year)).variables[forcing[i]][:] * GSmask1, Dataset('%s%s/%s.%s.nc' %(yeardir, forcing[i], forcing[i], year+1)).variables[forcing[i]][:] * GSmask2))
-		# aggregate to annual growing season values
+		# aggregate to annual growing season values by adding the two years together
 		data.append(nanmean(vstack((Dataset('%s%s/%s.%s.nc' %(yeardir, forcing[i], forcing[i], year)).variables[forcing[i]][:] * GSmask1, Dataset('%s%s/%s.%s.nc' %(yeardir, forcing[i], forcing[i], year+1)).variables[forcing[i]][:] * GSmask2)), axis=0).reshape(1, glat, glon))
 		print year
 	# convert to 3D annual array
 	data = vstack(data)
-	data.dump('%spet/pet_%s_%s-%s' %(workspace, freq, styr, edyr))
+	data.dump('%s%s/%s_%s_%s-%s' %(workspace, varname[i], varname[i], freq, styr, edyr))
 
 # (3) calculate MK trend
-elif step == 2.3:
+if step == 2.3:
 	data = load('%s%s/%s_%s_%s-%s' %(workspace, varname[i], varname[i], freq, styr, edyr))
-	Get_Area_Trend(data, freq, varname[i])
+	filename = '%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[i], freq)
+	Get_Area_Trend(data, filename)
 
-parameters = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[i], freq))
-plt.imshow(parameters[0, :, :])
-plt.show()
-exit()
 ## Step3: detrend the PET according to the two pivots experiments
-# y - (slope * x + intercept)
-# y - parameters[0, :, :] * x
+outdir = '/home/air1/lpeng/Projects/Africa/detrend/'
+if step == 3:
+	# apply the
+	parameters = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[i], freq))
+	firstyr = datetime.date(styr, 1, 1) # to calculate the starting index
+	# loop for each year to read data
+	for year in xrange(styr, edyr+1):
+		yrst = datetime.date(year, 1, 1)
+		nxyrst = datetime.date(year+1, 1, 1)
+		nd = (nxyrst-yrst).days
+		x = np.arange(nd, dtype=float) + (yrst - firstyr).days
+		# This is to extend 1D time dimension horizontally to 3D array
+		X = tile(x, glat * glon).reshape(glat, glon, nd).swapaxes(0, 2).swapaxes(1, 2)
+		Y = Dataset('%s%s/%s.%s.nc' %(yeardir, forcing[i], forcing[i], year)).variables[forcing[i]][:]
+		# EXP1: start pivot
+		exp1 = Y - parameters[0, :, :]/365.25 * X - parameters[1, :, :]
+		# EXP2: end pivot
+		exp2 = Y - parameters[0, :, :]/365.25 * X - parameters[1, :, :] + parameters[2, :, :]
+		exp1.dump('%sstart_pivot/%s.fullyear.%s' %(outdir, forcing[i], year))
+		exp2.dump('%sstart_pivot/%s.fullyear.%s' %(outdir, forcing[i], year))
+		del X, Y, exp1, exp2
+		print year
+		# print data.shape
+		# print nanmean(nanmean(parameters[1, :, :], 1), 0)
+		# print nanmean(nanmean(parameters[2, :, :], 1), 0)
+		# plt.plot(nanmean(nanmean(Y, 2), 1))
+		# plt.plot(nanmean(nanmean(exp1, 2), 1))
+		# plt.plot(nanmean(nanmean(exp2, 2), 1))
+		# plt.show()
 
-# if step == 3:
-# 	firstyr = datetime.date(styr, 1, 1)
-# 	for year in xrange(styr, styr+2):  #edyr):
-# 		yrst = datetime.date(year, 1, 1)
-# 		yred = datetime.date(year, 12, 31)
-# 		nxyr = datetime.date(year+1, 1, 1)
-# 		len = (nxyr-yrst).days
-# 		print len
-# 		x = np.arange(len, dtype=float) + (yrst - firstyr).days
-# 		print parameters[0, :, :] * x
-		# y = DataProcess.Extract_Data_Period_Average(yrst, yred, None, None, 'open', ctl_out, varname[i], 'all')
-		# y - parameters[0, :, :] * x
+exit()
+
+		# # load growing season calendar data
+		# pdate = Dataset('%smzplant_mu.nc' % gsdir).variables['pmu'][::-1]
+		# hdate = Dataset('%smzharvest_mu.nc' % gsdir).variables['hmu'][::-1]
+		# ## ultimate goal: make a 3D mask that get all the growing season values
+		# # first step: create masks for two different situation, harvest day is within the same year or next year
+		# mask_1yr = pdate < hdate  # Boolen values
+		# mask_2yrs = pdate >= hdate
+		# # second step: create an end-day array, when the harvest day is within the same year, just make the end day the same as the harvest day; when the harvest day is in the next year, just make the end day as the last day of the year
+		# edate = hdate * mask_1yr + (-1) * mask_2yrs
+		# # third step: initialize the 3D mask with length of 366, msmask1 is the mask for this year, gsmask2 is the mask for next year
+		# gsmask1 = empty((366, glat, glon))
+		# gsmask1.fill(nan)
+		# gsmask2 = zeros((366, glat, glon))
+		# # fourth step: loop for each grid to slice the pdate and edate period and average
+		# for lat in xrange(0, glat):
+		# 	for lon in xrange(0, glon):
+		# 		if mask_bl[lat, lon]:
+		# 			continue
+		# 		else:
+		# 			gsmask1[pdate[lat, lon]:edate[lat, lon], lat, lon] = 1
+		# 			gsmask2[:hdate[lat, lon], lat, lon] = 1
+		# gsmask2 = gsmask2 * mask_2yrs; gsmask2[gsmask2==0.0] = nan
+		# data = []
+		# #
+		# for year in xrange(styr, edyr): # since the end of growing season may exceed the last year
+		# 	if calendar.isleap(year):
+		# 		GSmask1 = gsmask1
+		# 	else:
+		# 		GSmask1 = gsmask1[:365, :, :]
+		# 	if calendar.isleap(year+1):
+		# 		GSmask2 = gsmask2
+		# 	else:
+		# 		GSmask2 = gsmask2[:365, :, :]
+
 		# yred = datetime.datetime(year, 12, 31)
 		#
-	# 		y = np.asarray(y)
-	# if y.ndim > 1:
-	# 	raise ValueError('y cannot have ndim > 1')
-	# if not y.ndim:
-	# 	return np.array(0., dtype=y.dtype)
-	#
-	# 	print ().days
 		#
 
 exit()

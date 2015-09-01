@@ -4,9 +4,10 @@ __author__ = 'lpeng'
 from netCDF4 import Dataset
 from pylab import *
 from PlotLibrary import Mapshow
-import datetime as dt
+import datetime
 import calendar, IO
 import pickle
+import numpy as np
 
 ##========Path===================================
 datadir = '/home/air1/lpeng/Projects/Africa/Data/'
@@ -101,11 +102,11 @@ maskdir = '/home/water5/lpeng/Masks/0.25deg/africa/'
 
 mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :]  # this is for computing
 unit = '[$mm$$\cdot$$yr^{-2}$]'
-limits = ([-0.25, 0.25], [-0.25, 0.25], [-2., 2.], [-0.1, 0.1], [-1., 1.], [-5., 5.], [-0.1, 0.1])
+limits = ([-0.1, 0.1], [-20., 20.])
 flag = 'growseason' # 'annual'
 
-i = 6
-slope = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[i], flag))
+i = 1
+slope = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[6], flag))
 clevs = arange(limits[i][0], limits[i][1]+0.01, (limits[i][1]-limits[i][0])/10)
 cblevs = arange(limits[i][0], limits[i][1]+0.01, round((limits[i][1]-limits[i][0])/10, 2))
 title = '%s Trend (%s): %s - %s' % (titles[i], flag, styr, edyr)
