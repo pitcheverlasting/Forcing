@@ -3,13 +3,13 @@ import numpy as np
 import datetime, sys, os
 ## start GrADS
 ##------------
-sys.path.insert(0, "/home/water5/lpeng/python/mylib/")
+sys.path.insert(0, "/home/water5/lpeng/Programming/python/mylib/")
 from grads import *
 from gradsen import *
 gradsen()
 ga = GrADS(Bin='/home/latent2/mpan/local/opengrads/Linux/x86_64/grads', Verb=False, Echo=False, Port=False, Window=False, Opts="-c 'q config'")
 
-def Create_NETCDF_File(dims, file, var, varname, tinitial, tstep, nt):
+def Create_NETCDF_File(dims, file, var, varname, data, tinitial, tstep, nt):
 
 	nlat = dims['nlat']
 	nlon = dims['nlon']
@@ -21,7 +21,7 @@ def Create_NETCDF_File(dims, file, var, varname, tinitial, tstep, nt):
 
 	# Prepare the netcdf file
 	# Create file
-	f = netcdf.Dataset(file, 'W')
+	f = netcdf.Dataset(file, 'w', format='NETCDF4')
 
 	# Define dimensions
 	f.createDimension('lon', nlon)
@@ -49,10 +49,21 @@ def Create_NETCDF_File(dims, file, var, varname, tinitial, tstep, nt):
 	f.variables['t'].long_name = 'Time'
 
 	# Data
-	f.createVariable(var, 'f', ('t', 'lat', 'lon'), fill_value=undef)
+	datafield = f.createVariable(var, 'f', ('t', 'lat', 'lon',), fill_value=undef, zlib=True)
 	f.variables[var].long_name = varname
+	datafield[:] = data
 
-	return f
+	f.sync()
+	f.close()
+
+	return #f
+
+def Write_NETCDF_File(dims, file, var, varname, tinitial, tstep, nt):
+
+	f = netcdf.Dataset(file, 'a')
+	date_time = f.variables['time']
+
+	return
 
 def Binary2netcdf(dir_in, dir_out, file_in, file_out):
 

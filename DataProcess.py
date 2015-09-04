@@ -50,6 +50,7 @@ def Extract_Data_Period_Average(idate_out, fdate_out, lat, lon, open_type, ctl_i
 	elif type == 'all':
 		ga('set time %s %s' %(t1, t2))
 		data = ma.getdata(ga.exp('maskout(%s, %s)' % (var, var)))
+		data[data<-9999] = nan
 
 	else:
 		print "Error: wrong type. Please select ave, pre, or all"
@@ -58,6 +59,7 @@ def Extract_Data_Period_Average(idate_out, fdate_out, lat, lon, open_type, ctl_i
 	ga('close 1')
 
 	return data
+
 
 
 def MannKendall_Trend_Parameter(y):
@@ -94,6 +96,7 @@ def Linear_Trend_Parameter(y):
 	a = mean(y) - b*mean(x)
 
 	return [a, b]
+
 
 
 ## The following functions are slow functions

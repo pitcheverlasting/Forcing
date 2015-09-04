@@ -19,7 +19,7 @@ units = ('K', 'K', 'W/m2', 'm/s', 'x100%', 'mm/d', 'mm/d')
 ##========dimension=========================
 glat = 292
 glon = 296
-styr = 1948
+styr = 1979
 edyr = 2010
 stdy = datetime.datetime(styr, 1, 1)
 eddy = datetime.datetime((edyr), 12, 31)
@@ -99,19 +99,38 @@ def PrecGet(file_in, num_records):
 figdir = '/home/water5/lpeng/Figure/africa/'  # figure dir
 maskdir = '/home/water5/lpeng/Masks/0.25deg/africa/'
 # mask_bl = Dataset('%smzplant_mu.nc' % gsdir).variables['pmu'][::-1].mask
-
 mask = Dataset('%smask_continent_africa_crop.nc' %maskdir).variables['data'][0, :, :]  # this is for computing
-unit = '[$mm$$\cdot$$yr^{-2}$]'
-limits = ([-0.1, 0.1], [-20., 20.])
-flag = 'growseason' # 'annual'
 
-i = 1
-slope = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[6], flag))
-clevs = arange(limits[i][0], limits[i][1]+0.01, (limits[i][1]-limits[i][0])/10)
-cblevs = arange(limits[i][0], limits[i][1]+0.01, round((limits[i][1]-limits[i][0])/10, 2))
-title = '%s Trend (%s): %s - %s' % (titles[i], flag, styr, edyr)
-Mapshow(dims, slope[0, :, :]*mask*365.25, "contour", clevs, cblevs,  title, unit)
-# savefig('%s%s_mk_trend_%s.png' % (figdir, varname[i], flag))
+i = 6
+ticks = arange(1979, 2011)
+freq = 'growseason'
+data1 = nanmean(nanmean(load('%s%s/%s_detrend_%s_%s_%s-%s' %(workspace, varname[i], varname[i], 'start_pivot', freq, styr, edyr)), axis=2), axis=1)
+data2 = nanmean(nanmean(load('%s%s/%s_detrend_%s_%s_%s-%s' %(workspace, varname[i], varname[i], 'end_pivot', freq, styr, edyr)), axis=2), axis=1)
+data = nanmean(nanmean(load('%s%s/%s_%s_%s-%s' %(workspace, varname[i], varname[i], freq, styr, edyr)), axis=2), axis=1)
+plt.plot(data, label='origin')
+plt.plot(data1, label='start_pivot')
+plt.plot(data2, label='end_pivot')
+plt.legend(prop={'size':16}, ncol=1, loc=3)
+plt.xlim([-1,len(data)])
+plt.xticks(range(len(ticks))[1::5], ticks[1::5], fontsize=16)
+plt.yticks(arange(5.0,5.5,0.1),fontsize=24)
+plt.ylabel('PET [mm/d]', fontsize=24)
+# savefig('%s%s_detrend_%s_%s-%s.png' % (figdir, varname[6], flag, styr, edyr-1))
+plt.show()
+exit()
+
+# unit = '[$mm$$\cdot$$d^{-1}$$\cdot$$yr^{-1}$]'
+# limits = ([-0.1, 0.1], [-0.05, 0.05])
+# flag = 'growseason' # 'annual'
+#
+# slope = load('%s%s/mk_trend_slope_st_ed_%s' % (workspace, varname[6], flag))
+# clevs = arange(limits[i][0], limits[i][1]+0.001, (limits[i][1]-limits[i][0])/10)
+# cblevs = arange(limits[i][0], limits[i][1]+0.001, round((limits[i][1]-limits[i][0])/10, 2))
+# title = '%s Trend (%s): %s - %s' % ('PET', flag, styr, edyr)
+# Mapshow(dims, slope[0, :, :], "contour", clevs, cblevs,  title, unit)
+# savefig('%s%s_mk_trend_%s_%s-%s.png' % (figdir, varname[6], flag, styr, edyr))
+
+
 
 
 # figdir = '/home/water5/lpeng/Figure/africa/'  # figure dir
@@ -135,10 +154,6 @@ Mapshow(dims, slope[0, :, :]*mask*365.25, "contour", clevs, cblevs,  title, unit
 # 	plt.clf()
 	# Mapshow(dims, slope[1, :, :]*mask*factors[i], 'imshow', limits[i][0], limits[i][1], title, units[i])
 
-
-	# look at pe nldas drawing
-	# again, redo the calculation of pe attribution
-	# redo the four dimension figure
 
 
 
