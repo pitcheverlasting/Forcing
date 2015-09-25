@@ -58,6 +58,40 @@ def Create_NETCDF_File(dims, file, var, varname, data, tinitial, tstep, nt):
 
 	return #f
 
+
+def Create_special_NETCDF_File(dims, file, vars, varname, data, tinitial, tstep):
+
+	nt = data.shape[0]
+	nexp = data.shape[2]
+	ns = data.shape[3]
+	undef = dims['undef']
+	t = np.arange(0, nt)
+
+	# Prepare the netcdf file
+	# Create file
+	f = netcdf.Dataset(file, 'w', format='NETCDF4')
+
+	# Define dimensions
+	f.createDimension('t', len(t))
+	f.createDimension('experiment', nexp)
+	f.createDimension('ensemble', ns)
+
+	# Time
+	f.createVariable('t', 'd', ('t', ))
+	f.variables['t'][:] = t
+	f.variables['t'].units = '%s since %04d-%02d-%02d %02d:00:00.0' % (tstep,tinitial.year,tinitial.month,tinitial.day,tinitial.hour)
+	f.variables['t'].long_name = 'Time'
+
+	# Data
+	for v, var in enumerate(vars):
+		datafield = f.createVariable(var, 'f', ('t', 'experiment', 'ensemble',), fill_value=undef, zlib=True)
+		f.variables[var].long_name = varname
+		datafield[:] = data[:, v, :, :]
+
+	f.sync()
+	f.close()
+
+
 def Write_NETCDF_File(dims, file, var, varname, tinitial, tstep, nt):
 
 	f = netcdf.Dataset(file, 'a')
